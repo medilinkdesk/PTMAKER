@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Garment Inventory Verification - Encrypted PWA</title>
+  <meta name="description" content="Mobile-friendly & laptop-compatible Garment Inventory Verification Web App with 256-bit Encryption, Multi-Role Access, and WebRTC Multi-Device Sync.">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- Application Styles -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- External CDN Libraries (SheetJS, ZXing & PeerJS for Multi-Device Sync) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+          <line x1="7" y1="7" x2="7.01" y2="7"></line>
+        </svg>
+        <div>
+          <h1 class="brand-title">GarmentVerify</h1>
+          <span class="brand-sub"><span class="lock-indicator">🔒 256-Bit Encrypted</span></span>
+        </div>
+      </div>
+
+      <!-- Active Session Status Pill -->
+      <div class="session-pill hidden" id="active-session-pill">
+        <span class="pulse-dot"></span>
+        <span id="nav-supplier-name">Supplier</span> &bull; <span id="nav-invoice-no">INV-001</span>
+      </div>
+
+      <!-- User Auth & Role Pill -->
+      <div class="user-auth-pill" id="user-auth-pill">
+        <span class="badge" id="user-role-badge">ADMIN</span>
+        <span id="user-name-display">User</span>
+        <button class="btn btn-sm btn-outline hidden" id="btn-admin-manage-users" title="Manage Rights & Operators">👥 Rights</button>
+        <button class="btn btn-sm btn-ghost" id="btn-lock-app" title="Lock App / Switch User">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        </button>
+      </div>
+
+      <!-- Desktop Navigation Links -->
+      <nav class="app-nav desktop-only-nav">
+        <button class="nav-btn active" data-view="dashboard" title="Dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-btn hidden" id="nav-mapping-btn" data-view="mapping" title="Column Mapping">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          <span>Mapping</span>
+        </button>
+        <button class="nav-btn hidden" id="nav-setup-btn" data-view="setup" title="Verification Setup">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Setup</span>
+        </button>
+        <button class="nav-btn hidden" id="nav-scan-btn" data-view="scan" title="Scan & Verify">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>
+          <span>Scan</span>
+        </button>
+        <button class="nav-btn hidden" id="nav-overview-btn" data-view="overview" title="Inventory Overview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          <span>Overview</span>
+        </button>
+        <button class="nav-btn hidden" id="nav-export-btn" data-view="export" title="Review & Export">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Export</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="app-main">
+
+    <!-- VIEW 1: DASHBOARD -->
+    <section id="view-dashboard" class="view-panel active">
+      <div class="dashboard-grid">
+        
+        <!-- Create New Session Card (Manager & Admin Only) -->
+        <div class="card highlight-card" id="card-new-session">
+          <div class="card-header flex-between">
+            <div>
+              <h2>Start New Verification Session</h2>
+              <p>Upload supplier Excel file (.xlsx, .xls, .csv)</p>
+            </div>
+            <span class="badge badge-info">Manager / Admin</span>
+          </div>
+          <form id="form-new-session" class="card-body form-grid">
+            <div class="form-group">
+              <label for="input-supplier">Party / Supplier Name <span class="required">*</span></label>
+              <input type="text" id="input-supplier" placeholder="e.g. Acme Garments Pvt Ltd" required>
+            </div>
+
+            <div class="form-group">
+              <label for="input-invoice">Invoice / Challan Number <span class="required">*</span></label>
+              <input type="text" id="input-invoice" placeholder="e.g. INV-2026-8891" required>
+            </div>
+
+            <div class="form-group">
+              <label for="input-date">Verification Date <span class="required">*</span></label>
+              <input type="date" id="input-date" required>
+            </div>
+
+            <div class="form-group full-width">
+              <label for="input-excel-file">Supplier Excel File (.xlsx, .xls, .csv) <span class="required">*</span></label>
+              <div class="file-dropzone" id="excel-dropzone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <p class="dropzone-text">Tap to select your Excel file</p>
+                <span class="file-name" id="file-name-display">No file selected</span>
+                <input type="file" id="input-excel-file" accept=".xlsx, .xls, .csv" required>
+              </div>
+            </div>
+
+            <div class="form-actions full-width">
+              <button type="submit" class="btn btn-primary btn-lg full-width" id="btn-create-session">
+                <span>Upload & Parse Encrypted Excel</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Saved Sessions & Multi-Device Sync Side -->
+        <div class="dashboard-side">
+          
+          <!-- Multi-Device Sync Card -->
+          <div class="card">
+            <div class="card-header">
+              <h3>📡 Multi-Device Live Sync</h3>
+              <p>Connect multiple phones for real-time scanning</p>
+            </div>
+            <div class="card-body">
+              <div class="sync-actions-grid">
+                <button type="button" class="btn btn-outline full-width" id="btn-open-sync-modal">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                  <span>Connect / Host Live Sync</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Restore Backup Card -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Restore Encrypted Session</h3>
+              <p>Import a 256-bit encrypted JSON backup</p>
+            </div>
+            <div class="card-body">
+              <label for="input-json-backup" class="btn btn-outline full-width">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span>Choose Backup JSON</span>
+              </label>
+              <input type="file" id="input-json-backup" accept=".json" class="hidden">
+            </div>
+          </div>
+
+          <!-- Active & Saved Encrypted Sessions List -->
+          <div class="card">
+            <div class="card-header flex-between">
+              <h3>Saved Sessions</h3>
+              <button class="btn btn-sm btn-ghost" id="btn-refresh-sessions" title="Refresh List">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+              </button>
+            </div>
+            <div class="card-body">
+              <div id="saved-sessions-list" class="sessions-list">
+                <div class="empty-state">
+                  <p>No saved encrypted sessions found.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Multi-Operator Live Work Monitor Section -->
+      <div class="card margin-top-md" id="card-operator-monitor">
+        <div class="card-header flex-between">
+          <div>
+            <h3>👥 Multi-Operator Live Work Monitor</h3>
+            <p>Real-time scan progress tracked across active scanner operators</p>
+          </div>
+          <span class="badge badge-success flex-align-center gap-1"><span class="pulse-dot"></span> Multi-Device Live</span>
+        </div>
+        <div class="card-body">
+          <div id="operator-stats-grid" class="operator-stats-grid">
+            <div class="empty-state p-3">
+              <p>No scans recorded yet in the active session.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: EXCEL COLUMN MAPPING -->
+    <section id="view-mapping" class="view-panel">
+      <div class="card">
+        <div class="card-header flex-between flex-wrap gap-2">
+          <div>
+            <h2>Excel Column Mapping</h2>
+            <p id="mapping-file-meta">Map required fields to your Excel headers</p>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" id="btn-auto-map">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+            <span>Auto-Suggest</span>
+          </button>
+        </div>
+
+        <div class="card-body">
+          
+          <div class="mapping-section">
+            <h3 class="section-title">Core Required Fields</h3>
+            <div class="mapping-grid" id="core-mapping-grid"></div>
+          </div>
+
+          <div class="mapping-section">
+            <h3 class="section-title">Optional Product Attributes</h3>
+            <div class="mapping-grid" id="optional-mapping-grid"></div>
+          </div>
+
+          <div id="mapping-warnings-box" class="warning-box hidden">
+            <div class="warning-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <span>Excel Warnings Detected</span>
+            </div>
+            <ul id="mapping-warnings-list" class="warning-list"></ul>
+          </div>
+
+          <div class="mapping-section">
+            <h3 class="section-title">Excel Data Preview (First 5 Rows)</h3>
+            <div class="table-responsive">
+              <table class="preview-table" id="table-mapping-preview">
+                <thead><tr id="preview-thead-row"></tr></thead>
+                <tbody id="preview-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="card-footer flex-between gap-2">
+          <button class="btn btn-outline" id="btn-back-to-dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            <span>Back</span>
+          </button>
+          <button class="btn btn-primary" id="btn-proceed-to-setup">
+            <span>Proceed to Setup</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: VERIFICATION SETUP -->
+    <section id="view-setup" class="view-panel">
+      <div class="card max-w-700">
+        <div class="card-header">
+          <h2>Configure Verification Fields</h2>
+          <p>Select product details to verify during physical stock scanning</p>
+        </div>
+        <div class="card-body">
+          
+          <div class="checkbox-group-grid">
+            <label class="checkbox-card">
+              <input type="checkbox" id="chk-verify-mrp" checked>
+              <div class="checkbox-content">
+                <span class="checkbox-title">MRP Verification</span>
+                <span class="checkbox-desc">Verify printed tag MRP vs expected Excel MRP.</span>
+              </div>
+            </label>
+
+            <label class="checkbox-card">
+              <input type="checkbox" id="chk-verify-qty" checked disabled>
+              <div class="checkbox-content">
+                <span class="checkbox-title">Quantity Verification</span>
+                <span class="checkbox-desc">Track physical scanned count vs expected Excel quantity.</span>
+              </div>
+            </label>
+
+            <label class="checkbox-card">
+              <input type="checkbox" id="chk-verify-size" checked>
+              <div class="checkbox-content">
+                <span class="checkbox-title">Size Verification</span>
+                <span class="checkbox-desc">Confirm product tag size matches expected Excel size.</span>
+              </div>
+            </label>
+
+            <label class="checkbox-card">
+              <input type="checkbox" id="chk-verify-brand">
+              <div class="checkbox-content">
+                <span class="checkbox-title">Brand Verification</span>
+                <span class="checkbox-desc">Check brand tag against expected Excel brand.</span>
+              </div>
+            </label>
+
+            <label class="checkbox-card">
+              <input type="checkbox" id="chk-verify-design">
+              <div class="checkbox-content">
+                <span class="checkbox-title">Design # Verification</span>
+                <span class="checkbox-desc">Check design number against Excel design number.</span>
+              </div>
+            </label>
+
+            <label class="checkbox-card">
+              <input type="checkbox" id="chk-verify-nature">
+              <div class="checkbox-content">
+                <span class="checkbox-title">Item Type Verification</span>
+                <span class="checkbox-desc">Verify garment type (Shirt, Trouser, Jeans, T-Shirt, etc.).</span>
+              </div>
+            </label>
+          </div>
+
+          <hr class="divider">
+
+          <h3>Feedback Settings</h3>
+          <div class="toggle-group">
+            <label class="toggle-label">
+              <input type="checkbox" id="chk-sound-enabled" checked>
+              <span>Play Beep Sound on Barcode Scan</span>
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="chk-vibrate-enabled" checked>
+              <span>Vibrate Mobile Device on Scan</span>
+            </label>
+          </div>
+
+        </div>
+        <div class="card-footer flex-between gap-2">
+          <button class="btn btn-outline" id="btn-back-to-mapping">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            <span>Back</span>
+          </button>
+          <button class="btn btn-success btn-lg" id="btn-start-scanning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>
+            <span>Start Barcode Scanning</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: SCAN & VERIFY -->
+    <section id="view-scan" class="view-panel">
+      
+      <!-- Sticky Summary Header Grid -->
+      <div class="scan-summary-bar">
+        <div class="summary-pill"><span class="label">Expected:</span> <strong id="stat-total-expected">0</strong></div>
+        <div class="summary-pill highlight"><span class="label">Scanned:</span> <strong id="stat-total-scanned">0</strong></div>
+        <div class="summary-pill"><span class="label">Pending:</span> <strong id="stat-total-pending">0</strong></div>
+        <div class="summary-pill warning"><span class="label">MRP Diff:</span> <strong id="stat-mrp-diff">0</strong></div>
+        <div class="summary-pill warning"><span class="label">Size Diff:</span> <strong id="stat-size-diff">0</strong></div>
+        <div class="summary-pill danger"><span class="label">Extra:</span> <strong id="stat-extra-items">0</strong></div>
+      </div>
+
+      <div class="scan-layout">
+        
+        <!-- Left / Top: Barcode Scanner Input & Quick Action Bar -->
+        <div class="scanner-control-card card">
+          <div class="card-header flex-between">
+            <h3>Barcode Scan</h3>
+            <span class="badge badge-info" id="scanner-active-user-badge">User: Ramesh</span>
+          </div>
+          <div class="card-body">
+            <form id="form-scan-barcode" class="scan-input-group">
+              <div class="barcode-input-wrapper">
+                <input type="text" id="input-barcode-scan" autocomplete="off" placeholder="Scan or type barcode EAN..." autofocus>
+                <button type="button" class="btn-clear-input hidden" id="btn-clear-scan-input" title="Clear input">✕</button>
+              </div>
+              <button type="submit" class="btn btn-primary" id="btn-find-barcode">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <span>Find</span>
+              </button>
+            </form>
+
+            <div class="scanner-actions">
+              <button type="button" class="btn btn-success btn-lg full-width btn-touch-hero" id="btn-open-camera">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                <span>📷 Open Camera Scanner</span>
+              </button>
+              <button type="button" class="btn btn-outline full-width" id="btn-manual-add-extra">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>+ Add Extra Unlisted Stock</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main / Right: Active Scanned Product Detail Card -->
+        <div class="product-detail-card card" id="card-product-detail">
+          
+          <div class="empty-scan-state" id="scan-empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><rect x="7" y="7" width="10" height="10" rx="1"></rect></svg>
+            <h3>Ready to Scan Garment Tag</h3>
+            <p>Tap <strong>Open Camera Scanner</strong> or use your physical barcode scanner gun.</p>
+          </div>
+
+          <div class="product-content hidden" id="scan-product-content">
+            
+            <div class="product-header">
+              <div class="product-title-group">
+                <span class="badge" id="product-status-badge">LISTED PRODUCT</span>
+                <h2 id="product-title">Brand / Item Title</h2>
+                <span class="ean-code">EAN: <strong id="product-ean">1234567890123</strong> &bull; Excel Row: <span id="product-row-num">#0</span> &bull; Scanned By: <strong id="val-scanned-by">System</strong></span>
+              </div>
+            </div>
+
+            <!-- Product Specs Grid -->
+            <div class="product-specs-grid">
+              <div class="spec-item"><span class="spec-label">Brand</span><span class="spec-val" id="val-brand">-</span></div>
+              <div class="spec-item"><span class="spec-label">Item / Nature</span><span class="spec-val" id="val-nature">-</span></div>
+              <div class="spec-item"><span class="spec-label">Design No</span><span class="spec-val" id="val-design">-</span></div>
+              <div class="spec-item"><span class="spec-label">Pattern</span><span class="spec-val" id="val-pattern">-</span></div>
+              <div class="spec-item"><span class="spec-label">Section</span><span class="spec-val" id="val-section">-</span></div>
+              <div class="spec-item"><span class="spec-label">Season</span><span class="spec-val" id="val-season">-</span></div>
+              <div class="spec-item"><span class="spec-label">Purchase Rate</span><span class="spec-val" id="val-rate">-</span></div>
+            </div>
+
+            <!-- Quantity Verification Widget -->
+            <div class="verification-box qty-box">
+              <div class="box-header flex-between">
+                <h3>Quantity Verification</h3>
+                <span class="qty-status-badge" id="qty-status-badge">Pending</span>
+              </div>
+              
+              <div class="qty-display-row">
+                <div class="qty-stat">
+                  <span class="qty-label">Expected</span>
+                  <span class="qty-value" id="qty-expected">0</span>
+                </div>
+                <div class="qty-stat">
+                  <span class="qty-label">Scanned</span>
+                  <span class="qty-value highlight" id="qty-scanned">0</span>
+                </div>
+                <div class="qty-stat">
+                  <span class="qty-label">Remaining</span>
+                  <span class="qty-value" id="qty-remaining">0</span>
+                </div>
+                <div class="qty-stat">
+                  <span class="qty-label">Excess</span>
+                  <span class="qty-value danger" id="qty-excess">0</span>
+                </div>
+              </div>
+
+              <div class="excess-warning hidden" id="excess-alert-banner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <span>Scanned quantity exceeds expected Excel quantity!</span>
+              </div>
+
+              <div class="qty-actions-mobile">
+                <button type="button" class="btn btn-success btn-xl full-width btn-scan-increment" id="btn-qty-add">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>+1 SCAN COUNT</span>
+                </button>
+
+                <div class="qty-secondary-controls">
+                  <button type="button" class="btn btn-outline" id="btn-qty-undo" title="Undo scan count">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                    <span>Undo</span>
+                  </button>
+
+                  <div class="stepper-input-container">
+                    <label>Actual Qty:</label>
+                    <div class="stepper-group">
+                      <button type="button" class="btn-stepper" id="btn-stepper-minus">-</button>
+                      <input type="number" id="input-physical-qty" min="0" step="1" value="0">
+                      <button type="button" class="btn-stepper" id="btn-stepper-plus">+</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- MRP & Size Verification Controls Grid -->
+            <div class="verification-controls-grid">
+              
+              <div class="verification-box" id="box-mrp-verify">
+                <div class="box-header flex-between">
+                  <h3>MRP Verification</h3>
+                  <span class="mrp-expected-badge">Excel MRP: <strong id="mrp-expected-val">₹0</strong></span>
+                </div>
+                <div class="mrp-actions">
+                  <button type="button" class="btn btn-toggle" id="btn-mrp-match">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>MRP Match</span>
+                  </button>
+                  <button type="button" class="btn btn-toggle" id="btn-mrp-diff">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <span>MRP Different</span>
+                  </button>
+                </div>
+                <div class="diff-input-group hidden" id="group-mrp-diff">
+                  <label for="input-actual-mrp">Enter Actual Tag MRP (₹):</label>
+                  <input type="number" id="input-actual-mrp" placeholder="Printed tag MRP" min="0" step="0.01">
+                </div>
+              </div>
+
+              <div class="verification-box" id="box-size-verify">
+                <div class="box-header flex-between">
+                  <h3>Size Verification</h3>
+                  <span class="size-expected-badge">Excel Size: <strong id="size-expected-val">-</strong></span>
+                </div>
+                <div class="size-actions">
+                  <button type="button" class="btn btn-toggle" id="btn-size-match">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Size Match</span>
+                  </button>
+                  <button type="button" class="btn btn-toggle" id="btn-size-diff">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <span>Size Different</span>
+                  </button>
+                </div>
+                <div class="diff-input-group hidden" id="group-size-diff">
+                  <label for="input-actual-size">Enter Actual Tag Size:</label>
+                  <input type="text" id="input-actual-size" placeholder="e.g. S, M, L, XL, 32, 38">
+                </div>
+              </div>
+
+            </div>
+
+            <div class="verification-box">
+              <label for="input-item-remarks"><strong>Remarks / Discrepancy Notes:</strong></label>
+              <textarea id="input-item-remarks" rows="2" placeholder="Add optional remarks..."></textarea>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- VIEW 5: INVENTORY OVERVIEW -->
+    <section id="view-overview" class="view-panel">
+      
+      <div class="stats-overview-grid">
+        <div class="stat-card"><span class="stat-num" id="ov-stat-total-items">0</span><span class="stat-title">Excel Items</span></div>
+        <div class="stat-card"><span class="stat-num" id="ov-stat-expected-units">0</span><span class="stat-title">Expected</span></div>
+        <div class="stat-card highlight"><span class="stat-num" id="ov-stat-scanned-units">0</span><span class="stat-title">Scanned</span></div>
+        <div class="stat-card"><span class="stat-num" id="ov-stat-pending-units">0</span><span class="stat-title">Pending</span></div>
+        <div class="stat-card warning"><span class="stat-num" id="ov-stat-mrp-diff">0</span><span class="stat-title">MRP Diff</span></div>
+        <div class="stat-card warning"><span class="stat-num" id="ov-stat-size-diff">0</span><span class="stat-title">Size Diff</span></div>
+        <div class="stat-card danger"><span class="stat-num" id="ov-stat-extra-items">0</span><span class="stat-title">Extra Items</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header flex-between flex-wrap gap-2">
+          <h2>Discrepancy & User Scans Overview</h2>
+          
+          <div class="filter-controls flex-wrap full-width-mobile">
+            <input type="text" id="input-overview-search" placeholder="Search Barcode, Brand, Operator..." class="search-input">
+            <select id="select-overview-filter" class="filter-select">
+              <option value="all">All Statuses</option>
+              <option value="my_scans">My Scans Only</option>
+              <option value="pending">Pending Items</option>
+              <option value="verified">Verified Items</option>
+              <option value="mrp_diff">MRP Mismatch</option>
+              <option value="size_diff">Size Mismatch</option>
+              <option value="excess">Excess Stock</option>
+              <option value="extra">Unlisted Extra Items</option>
+            </select>
+            <select id="select-operator-filter" class="filter-select">
+              <option value="all">All Operators</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card-body padding-sm-mobile">
+          <div class="table-responsive">
+            <table class="data-table" id="table-inventory-overview">
+              <thead>
+                <tr>
+                  <th>Row</th>
+                  <th>EAN Barcode</th>
+                  <th>Item Details</th>
+                  <th>Size</th>
+                  <th>MRP</th>
+                  <th>Exp</th>
+                  <th>Scan</th>
+                  <th>Act</th>
+                  <th>Scanned By</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-inventory-overview"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 6: REVIEW & EXPORT -->
+    <section id="view-export" class="view-panel">
+      <div class="review-layout">
+        
+        <div class="card max-w-800">
+          <div class="card-header flex-between">
+            <div>
+              <h2>Final Review & Export Excel</h2>
+              <p>Export updated supplier Excel containing original columns and verification results.</p>
+            </div>
+            <span class="badge badge-info" id="export-role-badge">Manager / Admin</span>
+          </div>
+          <div class="card-body">
+            
+            <div class="export-summary-box">
+              <h3>Verification Summary Report</h3>
+              <div class="summary-list">
+                <div class="summary-item"><span>Supplier Name:</span> <strong id="exp-val-supplier">-</strong></div>
+                <div class="summary-item"><span>Invoice / Challan #:</span> <strong id="exp-val-invoice">-</strong></div>
+                <div class="summary-item"><span>Verification Date:</span> <strong id="exp-val-date">-</strong></div>
+                <div class="summary-item"><span>Total Excel Lines:</span> <strong id="exp-val-lines">0</strong></div>
+                <div class="summary-item"><span>Total Expected Units:</span> <strong id="exp-val-expected">0</strong></div>
+                <div class="summary-item"><span>Total Physical Counted:</span> <strong id="exp-val-physical">0</strong></div>
+                <div class="summary-item"><span>Pending Unscanned Units:</span> <strong id="exp-val-pending">0</strong></div>
+                <div class="summary-item"><span>MRP Discrepancies:</span> <strong id="exp-val-mrp-mismatch">0</strong></div>
+                <div class="summary-item"><span>Size Discrepancies:</span> <strong id="exp-val-size-mismatch">0</strong></div>
+                <div class="summary-item"><span>Unlisted Extra Items:</span> <strong id="exp-val-extra">0</strong></div>
+              </div>
+            </div>
+
+            <div class="export-actions-grid">
+              <button class="btn btn-success btn-xl full-width" id="btn-download-excel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Download Verified Excel (.xlsx)</span>
+              </button>
+
+              <button class="btn btn-outline btn-lg full-width" id="btn-download-json-backup">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                <span>Save 256-Bit Encrypted JSON Backup</span>
+              </button>
+
+              <!-- Admin Only Session Deletion Control -->
+              <div class="admin-only-box hidden" id="admin-delete-session-box">
+                <hr class="divider">
+                <button class="btn btn-danger btn-lg full-width" id="btn-admin-delete-session">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  <span>Delete Session & Raw Excel File (Admin Only)</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Mobile Fixed Bottom Navigation Bar -->
+  <nav class="mobile-bottom-nav">
+    <button class="mobile-nav-btn active" data-view="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      <span>Home</span>
+    </button>
+    <button class="mobile-nav-btn hidden" id="mobile-nav-mapping-btn" data-view="mapping">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+      <span>Map</span>
+    </button>
+    <button class="mobile-nav-btn hidden" id="mobile-nav-scan-btn" data-view="scan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>
+      <span>Scan</span>
+    </button>
+    <button class="mobile-nav-btn hidden" id="mobile-nav-overview-btn" data-view="overview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line></svg>
+      <span>Overview</span>
+    </button>
+    <button class="mobile-nav-btn hidden" id="mobile-nav-export-btn" data-view="export">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline></svg>
+      <span>Export</span>
+    </button>
+  </nav>
+
+  <!-- MODALS -->
+
+  <!-- Modal 0: Redesigned High-End Authentication & Role Login Page -->
+  <div class="modal-overlay" id="modal-login">
+    <div class="modal-card auth-card-hero">
+      
+      <!-- Brand Hero Header -->
+      <div class="auth-hero-header">
+        <div class="auth-logo-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+          </svg>
+        </div>
+        <h2 class="auth-hero-title">GarmentVerify</h2>
+        <p class="auth-hero-subtitle">Encrypted Inventory Verification & Discrepancy Platform</p>
+        <span class="auth-security-pill">🔒 256-Bit Hardware AES-GCM Encryption</span>
+      </div>
+
+      <form id="form-login" class="modal-body auth-body">
+        
+        <!-- Role Selection Tabs -->
+        <div class="form-group full-width">
+          <label class="auth-field-label">Select Login Role</label>
+          <div class="role-selector-pills">
+            <button type="button" class="btn-role-tab active" data-role="ADMIN">
+              <span class="role-icon">👑</span>
+              <span>ADMIN</span>
+            </button>
+            <button type="button" class="btn-role-tab" data-role="MANAGER">
+              <span class="role-icon">👔</span>
+              <span>MANAGER</span>
+            </button>
+            <button type="button" class="btn-role-tab" data-role="USER">
+              <span class="role-icon">📱</span>
+              <span>SCANNER</span>
+            </button>
+          </div>
+          <input type="hidden" id="input-login-role" value="ADMIN">
+        </div>
+
+        <!-- Role Privileges Description Box -->
+        <div class="role-privilege-card" id="role-privilege-card">
+          <span class="privilege-title">ADMIN PRIVILEGES:</span>
+          <span class="privilege-desc" id="role-privilege-text">Full Control &bull; Excel Upload &bull; Delete Session & Raw File &bull; Export Reports</span>
+        </div>
+
+        <!-- User Name Field -->
+        <div class="form-group full-width">
+          <label for="input-login-name" class="auth-field-label">User / Operator Name <span class="required">*</span></label>
+          <div class="input-with-icon">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <input type="text" id="input-login-name" placeholder="e.g. Ramesh Kumar" value="Ramesh Kumar" required>
+          </div>
+        </div>
+
+        <!-- Passcode Field with Toggle -->
+        <div class="form-group full-width">
+          <label for="input-login-password" class="auth-field-label">Role Passcode <span class="required">*</span></label>
+          <div class="input-with-icon">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <input type="password" id="input-login-password" placeholder="Enter role password..." value="admin123" required>
+            <button type="button" class="btn-toggle-pw" id="btn-toggle-password" title="Toggle password visibility">👁️</button>
+          </div>
+        </div>
+
+        <!-- Quick Auto-Fill Password Pills for Testing -->
+        <div class="autofill-pills-row">
+          <span class="autofill-label">Quick Auto-Fill:</span>
+          <button type="button" class="btn-autofill" data-pass="admin123" data-role="ADMIN">Admin (admin123)</button>
+          <button type="button" class="btn-autofill" data-pass="mgr123" data-role="MANAGER">Manager (mgr123)</button>
+          <button type="button" class="btn-autofill" data-pass="user123" data-role="USER">User (user123)</button>
+        </div>
+
+        <!-- Stay Logged In Toggle & Submit Button -->
+        <div class="auth-footer-actions">
+          <label class="toggle-label-switch">
+            <input type="checkbox" id="chk-remember-me" checked>
+            <span class="switch-slider"></span>
+            <span class="switch-text">Stay Logged In Permanently</span>
+          </label>
+
+          <button type="submit" class="btn btn-primary btn-hero-login full-width">
+            <span>UNLOG & ENTER APP</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 1: Multi-Device WebRTC Live Sync Modal -->
+  <div class="modal-overlay hidden" id="modal-peer-sync">
+    <div class="modal-card">
+      <div class="modal-header flex-between">
+        <h3>📡 Multi-Device Live Sync</h3>
+        <button type="button" class="btn-icon" id="btn-close-peer-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="sync-box" id="box-host-sync">
+          <h4>Host Active Session (Manager/Admin)</h4>
+          <p>Share this 6-digit Sync Code with scanner users on other mobile phones:</p>
+          <div class="sync-code-display" id="display-host-code">GV-****</div>
+          <button type="button" class="btn btn-primary full-width" id="btn-start-peer-host">Generate Sync PIN & Host</button>
+          <div class="connected-peers-list hidden" id="connected-peers-box">
+            <h5>Connected Scanner Devices:</h5>
+            <ul id="connected-peers-list"></ul>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="sync-box" id="box-join-sync">
+          <h4>Join Manager's Session (Scanner User)</h4>
+          <p>Enter the 6-digit Sync Code displayed on Manager's device:</p>
+          <div class="form-group">
+            <input type="text" id="input-join-code" placeholder="e.g. GV-8921" class="text-center bold-input">
+            <button type="button" class="btn btn-success full-width" id="btn-connect-peer-join">Connect to Manager Session</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Duplicate Barcode Selector -->
+  <div class="modal-overlay hidden" id="modal-duplicate-ean">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Multiple Items Found for Barcode</h3>
+        <p>Select which product row/size you are scanning:</p>
+      </div>
+      <div class="modal-body">
+        <div class="duplicate-items-list" id="duplicate-items-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost full-width" id="btn-close-duplicate-modal">Cancel Scan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Add Extra Stock Item -->
+  <div class="modal-overlay hidden" id="modal-extra-stock">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Add Extra / Unlisted Product</h3>
+        <p>Barcode was not found in supplier Excel sheet</p>
+      </div>
+      <form id="form-extra-stock" class="modal-body form-grid">
+        <div class="form-group full-width">
+          <label for="extra-ean">EAN / Barcode <span class="required">*</span></label>
+          <input type="text" id="extra-ean" required>
+        </div>
+        <div class="form-group">
+          <label for="extra-qty">Actual Physical Qty <span class="required">*</span></label>
+          <input type="number" id="extra-qty" value="1" min="1" required>
+        </div>
+        <div class="form-group">
+          <label for="extra-mrp">Actual MRP (₹)</label>
+          <input type="number" id="extra-mrp" placeholder="Tag MRP" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label for="extra-size">Size</label>
+          <input type="text" id="extra-size" placeholder="Tag Size">
+        </div>
+        <div class="form-group">
+          <label for="extra-brand">Brand</label>
+          <input type="text" id="extra-brand" placeholder="Brand Name">
+        </div>
+        <div class="form-group">
+          <label for="extra-design">Design Number</label>
+          <input type="text" id="extra-design" placeholder="Style / Article #">
+        </div>
+        <div class="form-group">
+          <label for="extra-nature">Nature / Item Type</label>
+          <input type="text" id="extra-nature" placeholder="e.g. Shirt, Jeans">
+        </div>
+        <div class="form-group full-width">
+          <label for="extra-remarks">Remarks</label>
+          <textarea id="extra-remarks" rows="2" placeholder="e.g. Unlisted item found in shipment"></textarea>
+        </div>
+        <div class="modal-footer full-width flex-between gap-2">
+          <button type="button" class="btn btn-ghost" id="btn-cancel-extra-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Extra Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 4: Enhanced Camera Scanner Overlay -->
+  <div class="modal-overlay hidden" id="modal-camera-scanner">
+    <div class="modal-card camera-card">
+      <div class="modal-header flex-between">
+        <div class="camera-title-group">
+          <h3>Camera Scanner</h3>
+          <span class="badge badge-info" id="active-camera-name">Back Camera</span>
+        </div>
+        
+        <div class="camera-top-actions">
+          <button type="button" class="btn btn-sm btn-outline" id="btn-toggle-torch" title="Flashlight Torch">
+            <span>🔦 Flash</span>
+          </button>
+          <button type="button" class="btn btn-sm btn-primary" id="btn-switch-camera" title="Switch Camera (Back/Front)">
+            <span>🔄 Switch Cam</span>
+          </button>
+          <button type="button" class="btn-icon" id="btn-close-camera" title="Close Camera">✕</button>
+        </div>
+      </div>
+      
+      <div class="modal-body camera-body">
+        <div class="video-container">
+          <video id="camera-video" playsinline muted></video>
+          <div class="scan-laser-box">
+            <div class="laser-line"></div>
+            <div class="corner-tl"></div>
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="corner-br"></div>
+          </div>
+        </div>
+        
+        <div class="camera-controls">
+          <label for="select-camera-device" class="camera-select-label">Selected Device:</label>
+          <select id="select-camera-device" class="filter-select full-width">
+            <option value="">Detecting cameras...</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Admin Rights & Operator Management -->
+  <div class="modal-overlay hidden" id="modal-user-management">
+    <div class="modal-card max-w-700">
+      <div class="modal-header flex-between">
+        <div>
+          <h3>👑 Rights & Operator Management</h3>
+          <p>Create custom operators, set passwords, and manage role access</p>
+        </div>
+        <button type="button" class="btn-icon" id="btn-close-user-modal" title="Close Modal">✕</button>
+      </div>
+      
+      <div class="modal-body form-grid">
+        
+        <!-- Create New User Form -->
+        <div class="card bg-subtle full-width">
+          <div class="card-header">
+            <h4>➕ Create New User / Operator Account</h4>
+          </div>
+          <form id="form-create-user" class="card-body form-grid">
+            <div class="form-group">
+              <label for="input-new-user-name">Operator / User Name <span class="required">*</span></label>
+              <input type="text" id="input-new-user-name" placeholder="e.g. Rahul Sharma, Op-02" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="select-new-user-role">Access Role <span class="required">*</span></label>
+              <select id="select-new-user-role" class="filter-select" required>
+                <option value="USER">📱 USER (Scanner Operator)</option>
+                <option value="MANAGER">👔 MANAGER (Sync & Export)</option>
+                <option value="ADMIN">👑 ADMIN (Full Control)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="input-new-user-pass">Login Passcode / Password <span class="required">*</span></label>
+              <input type="text" id="input-new-user-pass" placeholder="Set password (e.g. 1234)" required>
+            </div>
+
+            <div class="form-group flex-end">
+              <button type="submit" class="btn btn-primary full-width">
+                <span>➕ Create Account</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- System Users List -->
+        <div class="card full-width">
+          <div class="card-header flex-between">
+            <h4>Registered System Accounts</h4>
+            <span class="badge badge-info" id="count-system-users">3 Users</span>
+          </div>
+          <div class="card-body padding-sm-mobile">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Name / ID</th>
+                    <th>Role</th>
+                    <th>Passcode</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-system-users">
+                  <!-- Dynamic user rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
