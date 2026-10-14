@@ -1257,7 +1257,6 @@ function handleBarcodeScan(scannedCode) {
     stopCameraScanner();
     document.getElementById('modal-camera-scanner')?.classList.add('hidden');
   }
-
   const codeStr = String(scannedCode).trim();
   const matchingItems = state.currentSession.items.filter(item => 
     item.ean.toLowerCase() === codeStr.toLowerCase()
@@ -1544,7 +1543,6 @@ document.getElementById('btn-confirm-next-scan')?.addEventListener('click', () =
     if (input) input.focus();
   }, 100);
 });
-
 function updateOperatorMonitor() {
   const container = document.getElementById('operator-stats-grid');
   const operatorSelect = document.getElementById('select-operator-filter');
@@ -1842,11 +1840,18 @@ function startDecodingWithDeviceId(deviceId) {
   let lastScanCode = '';
 
   state.zxingReader.decodeFromVideoDevice(deviceId, 'camera-video', (result, err) => {
-    if (result && !state.isScanLocked) {
+    if (result) {
       const code = result.getText();
-      stopCameraScanner();
-      document.getElementById('modal-camera-scanner')?.classList.add('hidden');
-      handleBarcodeScan(code);
+      const now = Date.now();
+
+      if (!state.isScanLocked && (code !== lastScanCode || (now - lastScanTime) > 800)) {
+        lastScanCode = code;
+        lastScanTime = now;
+        stopCameraScanner();
+        document.getElementById('modal-camera-scanner')?.classList.add('hidden');
+        handleBarcodeScan(code);
+      }
+    }
     }
   }).then(controls => {
     const videoElem = document.getElementById('camera-video');
@@ -2312,9 +2317,6 @@ document.getElementById('btn-admin-delete-session')?.addEventListener('click', a
 
 // Saved Encrypted Sessions List Manager
 async function renderSavedSessionsList(skipCloudSync = false) {
-  if (!skipCloudSync) {
-    await CloudSync.syncAllFromCloud(true);
-  }
   const sessions = await DB.getAllSessions();
   const container = document.getElementById('saved-sessions-list');
 
